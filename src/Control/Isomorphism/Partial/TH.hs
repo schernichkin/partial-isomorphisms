@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Control.Isomorphism.Partial.TH 
+module Control.Isomorphism.Partial.TH
   ( constructorIso
   , defineIsomorphisms
   ) where
@@ -13,37 +13,59 @@ import Control.Isomorphism.Partial.Unsafe (Iso (Iso))
 
 -- | Extract the name of a constructor, e.g. ":" or "Just".
 conName :: Con -> Name
-conName (NormalC name fields)       =   name
-conName (RecC name fields)          =   name
-conName (InfixC lhs name rhs)       =   name
-conName (ForallC vars context con)  =   conName con
+conName (NormalC name _)   =   name
+conName (RecC name _)      =   name
+conName (InfixC _ name _)  =   name
+conName (ForallC _ _ con)  =   conName con
 
 -- | Extract the types of the constructor's fields.
 conFields :: Con -> [Type]
-conFields (NormalC name fields)       =   map (\(s, t) -> t) fields
-conFields (RecC name fields)          =   map (\(n, s, t) -> t) fields
-conFields (InfixC lhs name rhs)       =   map (\(s, t) -> t) [lhs, rhs]
-conFields (ForallC vars context con)  =   conFields con
+conFields (NormalC _ fields)  =   map (\(_, t) -> t) fields
+conFields (RecC _ fields)     =   map (\(_, _, t) -> t) fields
+conFields (InfixC lhs _ rhs)  =   map (\(_, t) -> t) [lhs, rhs]
+conFields (ForallC _ _ con)   =   conFields con
 
--- | Extract the constructors of a type declaration
-decConstructors :: Dec -> Q [Con]
-decConstructors (DataD _ _ _ cs _)    =  return cs
-decConstructors (NewtypeD _ _ _ c _)  =  return [c]
-decConstructors _                      
-  = fail "partial isomorphisms can only be derived for constructors of data type or newtype declarations."
+-- Data dec information
+data DecInfo = DecInfo Type [TyVarBndr] [Con]
 
--- | Construct a partial isomorphism expression for a constructor, 
+-- | Extract data or newtype declaration information
+decInfo :: Dec -> Q DecInfo
+decInfo (DataD    _ name tyVars cs _) =  return $ DecInfo (ConT name) tyVars cs
+decInfo (NewtypeD _ name tyVars  c _) =  return $ DecInfo (ConT name) tyVars [c]
+decInfo _ = fail "partial isomorphisms can only be derived for constructors of data type or newtype declarations."
+
+-- | Convert tyVarBndr to type
+tyVarBndrToType :: TyVarBndr -> Type
+tyVarBndrToType (PlainTV  n)   = VarT n
+tyVarBndrToType (KindedTV n k) = SigT (VarT n) k
+
+-- | Create Iso type for specified type and conctructor fields (Iso (a, b) (CustomType a b c))
+isoType :: Type -> [TyVarBndr] -> [Type] -> Q Type
+isoType typ tyVarBndrs fields = do
+    isoCon <- [t| Iso |]
+    return $ ForallT tyVarBndrs [] $ isoCon `AppT` (isoArgs fields) `AppT` (applyAll typ $ map tyVarBndrToType tyVarBndrs)
+
+isoArgs :: [Type] -> Type
+isoArgs []     = TupleT 0
+isoArgs [x]    = x
+isoArgs (x:xs) = AppT (AppT (TupleT 2) x) (isoArgs xs)
+
+-- | Apply all types to supplied type
+applyAll :: Type -> [Type] -> Type
+applyAll = foldl AppT
+
+-- | Construct a partial isomorphism expression for a constructor,
 -- given the constructor's name.
 constructorIso :: Name -> ExpQ
-constructorIso c = do
-  DataConI n _ d _  <-  reify c
+constructorIso name = do
+  DataConI n _ d _  <-  reify name
   TyConI dec        <-  reify d
-  cs                <-  decConstructors dec
+  DecInfo _ _ cs    <-  decInfo dec
   let Just con      =   find (\c -> n == conName c) cs
   isoFromCon (wildcard cs) con
 
 wildcard :: [Con] -> [MatchQ]
-wildcard cs 
+wildcard cs
   =  if length cs > 1
      then  [match (wildP) (normalB [| Nothing |]) []]
      else  []
@@ -52,54 +74,51 @@ wildcard cs
 --   letter) into a function name (starting with a lower-case
 --   letter).
 rename :: Name -> Name
-rename n 
+rename n
   = mkName (toLower c : cs) where c : cs = nameBase n
 
--- | Construct partial isomorphism definitions for all 
---   constructors of a datatype, given the datatype's name.
---   The names of the partial isomorphisms are constructed by
---   spelling the constructor names with an initial lower-case
---   letter.
 defineIsomorphisms :: Name -> Q [Dec]
 defineIsomorphisms d = do
   TyConI dec  <-  reify d
-  cs          <-  decConstructors dec
-  mapM (defFromCon (wildcard cs)) cs
+  DecInfo typ tyVarBndrs cs          <-  decInfo dec
+  join `fmap` mapM (\a -> defFromCon (wildcard cs) typ tyVarBndrs a) cs
 
 -- | Constructs a partial isomorphism definition for a
 --   constructor, given information about the constructor.
 --   The name of the partial isomorphisms is constructed by
 --   spelling the constructor name with an initial lower-case
 --   letter.
-defFromCon :: [MatchQ] -> Con -> DecQ
-defFromCon wildcard con
-  = funD (rename (conName con)) 
-      [clause [] (normalB (isoFromCon wildcard con)) []]
+defFromCon :: [MatchQ] -> Type -> [TyVarBndr] -> Con -> DecsQ
+defFromCon matches t tyVarBndrs con = do
+    let funName = rename $ conName con
+    sig <- SigD funName `fmap` isoType t tyVarBndrs (conFields con)
+    fun <- funD funName [ clause [] (normalB (isoFromCon matches con)) [] ]
+    return [sig, fun]
 
 -- | Constructs a partial isomorphism expression for a
 --   constructor, given information about the constructor.
 isoFromCon :: [MatchQ] -> Con -> ExpQ
-isoFromCon wildcard con = do
+isoFromCon matches con = do
   let c     =   conName con
   let fs    =   conFields con
   let n     =   length fs
   (ps, vs)  <-  genPE n
   v         <-  newName "x"
-  let f     =   lamE [nested tupP ps] 
+  let f     =   lamE [nested tupP ps]
                   [| Just $(foldl appE (conE c) vs) |]
-  let g     =   lamE [varP v] 
-                  (caseE (varE v) $ 
-                    [ match (conP c ps) 
+  let g     =   lamE [varP v]
+                  (caseE (varE v) $
+                    [ match (conP c ps)
                         (normalB [| Just $(nested tupE vs) |]) []
-                    ] ++ wildcard)
+                    ] ++ matches)
   [| Iso $f $g |]
 
-
-
+genPE :: Int -> Q ([PatQ], [ExpQ])
 genPE n = do
   ids <- replicateM n (newName "x")
   return (map varP ids, map varE ids)
 
-nested tup []      =  tup [] 
-nested tup [x]     =  x
+nested :: ([t] -> t) -> [t] -> t
+nested tup []      =  tup []
+nested _   [x]     =  x
 nested tup (x:xs)  =  tup [x, nested tup xs]

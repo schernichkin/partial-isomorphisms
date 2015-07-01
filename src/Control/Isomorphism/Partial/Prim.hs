@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Control.Isomorphism.Partial.Prim
   ( Iso ()
   , inverse
@@ -32,13 +34,13 @@ inverse :: Iso alpha beta -> Iso beta alpha
 inverse (Iso f g) = Iso g f
 
 apply :: Iso alpha beta -> alpha -> Maybe beta
-apply (Iso f g) = f
+apply (Iso f _) = f
 
 unapply  ::  Iso alpha beta -> beta -> Maybe alpha
 unapply  =   apply . inverse
 
 instance Category Iso where
-  g . f  =  Iso  (apply f >=> apply g) 
+  g . f  =  Iso  (apply f >=> apply g)
                  (unapply g >=> unapply f)
   id     =  Iso  Just Just
 
@@ -52,14 +54,14 @@ ignore x = Iso f g where
   f _   =  Just ()
   g ()  =  Just x
 
--- | the product type constructor `(,)` is a bifunctor from 
--- `Iso` $\times$ `Iso` to `Iso`, so that we have the 
--- bifunctorial map `***` which allows two separate isomorphisms 
+-- | the product type constructor `(,)` is a bifunctor from
+-- `Iso` $\times$ `Iso` to `Iso`, so that we have the
+-- bifunctorial map `***` which allows two separate isomorphisms
 -- to work on the two components of a tuple.
 (***) :: Iso alpha beta -> Iso gamma delta -> Iso (alpha, gamma) (beta, delta)
 i *** j = Iso f g where
-  f (a, b) = liftM2 (,) (apply i a) (apply j b) 
-  g (c, d) = liftM2 (,) (unapply i c) (unapply j d) 
+  f (a, b) = liftM2 (,) (apply i a) (apply j b)
+  g (c, d) = liftM2 (,) (unapply i c) (unapply j d)
 
 -- | The mediating arrow for sums constructed with `Either`.
 -- This is not a proper partial isomorphism because of `mplus`.
@@ -69,8 +71,8 @@ i ||| j = Iso f g where
   f (Right x) = apply j x
   g y = (Left `fmap` unapply i y) `mplus` (Right `fmap` unapply j y)
 
- 
--- | Nested products associate. 
+
+-- | Nested products associate.
 associate :: Iso (alpha, (beta, gamma)) ((alpha, beta), gamma)
 associate = Iso f g where
   f (a, (b, c)) = Just ((a, b), c)
@@ -81,7 +83,7 @@ commute :: Iso (alpha, beta) (beta, alpha)
 commute = Iso f f where
   f (a, b) = Just (b, a)
 
--- | `()` is the unit element for products. 
+-- | `()` is the unit element for products.
 unit :: Iso alpha (alpha, ())
 unit = Iso f g where
   f a = Just (a, ())
@@ -94,12 +96,12 @@ distribute  =   Iso f g where
   f (a, Right  c)    =  Just (Right  (a, c))
   g (Left   (a, b))  =  Just (a,  Left   b)
   g (Right  (a, b))  =  Just (a,  Right  b)
-  
--- | `element x` is the partial isomorphism between `()` and the 
+
+-- | `element x` is the partial isomorphism between `()` and the
 -- singleton set which contains just `x`.
 element :: Eq alpha => alpha -> Iso () alpha
-element x = Iso 
-  (\a -> Just x)
+element x = Iso
+  (\_ -> Just x)
   (\b -> if x == b then Just () else Nothing)
 
 -- | For a predicate `p`, `subset p` is the identity isomorphism
@@ -112,9 +114,9 @@ iterate :: Iso alpha alpha -> Iso alpha alpha
 iterate step = Iso f g where
   f = Just . driver (apply step)
   g = Just . driver (unapply step)
-  
+
   driver :: (alpha -> Maybe alpha) -> (alpha -> alpha)
-  driver step state 
-    =  case step state of
-         Just state'  ->  driver step state'
+  driver step' state
+    =  case step' state of
+         Just state'  ->  driver step' state'
          Nothing      ->  state

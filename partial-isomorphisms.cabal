@@ -1,17 +1,17 @@
 Name:                partial-isomorphisms
-Version:             0.2
+Version:             0.2.1
 Synopsis:            Partial isomorphisms.
-Description:         Partial isomorphisms as described in the 
+Description:         Partial isomorphisms as described in the
                      paper:
                      .
-                     Tillmann Rendel and Klaus Ostermann. 
-                     Invertible Syntax Descriptions: 
-                     Unifying Parsing and Pretty Printing. 
+                     Tillmann Rendel and Klaus Ostermann.
+                     Invertible Syntax Descriptions:
+                     Unifying Parsing and Pretty Printing.
                      In /Proc. of Haskell Symposium/, 2010.
                      .
-                     The paper also describes invertible syntax 
-                     descriptions as a common interface for 
-                     parsers and pretty printers. These are 
+                     The paper also describes invertible syntax
+                     descriptions as a common interface for
+                     parsers and pretty printers. These are
                      distributed separately in the
                      /invertible-syntax/ package.
 Homepage:            http://www.informatik.uni-marburg.de/~rendel/unparse
@@ -19,11 +19,15 @@ License:             BSD3
 License-file:        LICENSE
 Author:              Tillmann Rendel
 Maintainer:          rendel@informatik.uni-marburg.de
--- Copyright:           
+-- Copyright:
 Category:            Control
 Build-type:          Simple
--- Extra-source-files:  
-Cabal-version:       >=1.2
+-- Extra-source-files:
+Cabal-version:       >=1.6
+
+source-repository head
+  type: git
+  location: git://github.com/schernichkin/partial-isomorphisms.git
 
 Library
   Hs-source-dirs:   src
@@ -33,9 +37,11 @@ Library
                     Control.Isomorphism.Partial.Prim
                     Control.Isomorphism.Partial.TH
                     Control.Isomorphism.Partial.Unsafe
-  
+
   Build-depends:    base >= 3 && < 5, template-haskell
-  
-  -- Other-modules:       
-  
-  -- Build-tools:         
+
+  ghc-options:     -Wall
+
+  -- Other-modules:
+
+  -- Build-tools:

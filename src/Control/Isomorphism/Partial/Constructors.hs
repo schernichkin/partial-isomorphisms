@@ -1,4 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE KindSignatures  #-}
+
 module Control.Isomorphism.Partial.Constructors 
   ( nil
   , cons
@@ -11,9 +13,7 @@ module Control.Isomorphism.Partial.Constructors
 
 import Prelude ()
 
-import Data.Bool (Bool, otherwise)
 import Data.Either (Either (Left, Right))
-import Data.Eq (Eq ((==)))
 import Data.Maybe (Maybe (Just, Nothing))
 
 import Control.Isomorphism.Partial.Unsafe (Iso (Iso))
@@ -30,7 +30,7 @@ cons = Iso f g where
   f (x, xs)   =  Just (x : xs)
   g (x : xs)  =  Just (x, xs)
   g _         =  Nothing
-  
+
 listCases :: Iso (Either () (alpha, [alpha])) [alpha]
 listCases = Iso f g
   where
