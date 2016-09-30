@@ -4,12 +4,16 @@ module Control.Isomorphism.Partial.TH
   , defineIsomorphisms
   ) where
 
-import Language.Haskell.TH
-import Control.Monad
-import Data.List (find)
-import Data.Char (toLower)
+import           Control.Monad
+import           Data.Char                          (toLower)
+import           Data.List                          (find)
+import           Language.Haskell.TH
 
-import Control.Isomorphism.Partial.Unsafe (Iso (Iso))
+import           Control.Isomorphism.Partial.Unsafe (Iso (Iso))
+
+gadtError :: a
+gadtError = error "Control.Isomorphism.Partial.TH: GADTs currently not supported."
+{-# NOINLINE gadtError #-}
 
 -- | Extract the name of a constructor, e.g. ":" or "Just".
 conName :: Con -> Name
@@ -17,6 +21,8 @@ conName (NormalC name _)   =   name
 conName (RecC name _)      =   name
 conName (InfixC _ name _)  =   name
 conName (ForallC _ _ con)  =   conName con
+conName (GadtC _ _ _)      =   gadtError
+conName (RecGadtC _ _ _)   =   gadtError
 
 -- | Extract the types of the constructor's fields.
 conFields :: Con -> [Type]
@@ -24,14 +30,16 @@ conFields (NormalC _ fields)  =   map (\(_, t) -> t) fields
 conFields (RecC _ fields)     =   map (\(_, _, t) -> t) fields
 conFields (InfixC lhs _ rhs)  =   map (\(_, t) -> t) [lhs, rhs]
 conFields (ForallC _ _ con)   =   conFields con
+conFields (GadtC _ _ _)       =   gadtError
+conFields (RecGadtC _ _ _)    =   gadtError
 
 -- Data dec information
 data DecInfo = DecInfo Type [TyVarBndr] [Con]
 
 -- | Extract data or newtype declaration information
 decInfo :: Dec -> Q DecInfo
-decInfo (DataD    _ name tyVars cs _) =  return $ DecInfo (ConT name) tyVars cs
-decInfo (NewtypeD _ name tyVars  c _) =  return $ DecInfo (ConT name) tyVars [c]
+decInfo (DataD    _ name tyVars _ cs _) =  return $ DecInfo (ConT name) tyVars cs
+decInfo (NewtypeD _ name tyVars _ c _) =  return $ DecInfo (ConT name) tyVars [c]
 decInfo _ = fail "partial isomorphisms can only be derived for constructors of data type or newtype declarations."
 
 -- | Convert tyVarBndr to type
@@ -58,7 +66,7 @@ applyAll = foldl AppT
 -- given the constructor's name.
 constructorIso :: Name -> ExpQ
 constructorIso name = do
-  DataConI n _ d _  <-  reify name
+  DataConI n _ d    <-  reify name
   TyConI dec        <-  reify d
   DecInfo _ _ cs    <-  decInfo dec
   let Just con      =   find (\c -> n == conName c) cs
