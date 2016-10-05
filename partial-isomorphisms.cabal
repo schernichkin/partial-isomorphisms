@@ -1,5 +1,5 @@
 Name:                partial-isomorphisms
-Version:             0.2.1
+Version:             0.2.2
 Synopsis:            Partial isomorphisms.
 Description:         Partial isomorphisms as described in the
                      paper:
@@ -18,7 +18,8 @@ Homepage:            http://www.informatik.uni-marburg.de/~rendel/unparse
 License:             BSD3
 License-file:        LICENSE
 Author:              Tillmann Rendel
-Maintainer:          rendel@informatik.uni-marburg.de
+Maintainer:          Tillmann Rendel <rendel@informatik.uni-marburg.de>
+                     Stanislav Chernichkin <schernichkin@gmail.com>
 -- Copyright:
 Category:            Control
 Build-type:          Simple
