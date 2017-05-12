@@ -1,5 +1,5 @@
 Name:                partial-isomorphisms
-Version:             0.2.2
+Version:             0.2.2.1
 Synopsis:            Partial isomorphisms.
 Description:         Partial isomorphisms as described in the
                      paper:
@@ -40,7 +40,7 @@ Library
                     Control.Isomorphism.Partial.Unsafe
 
   default-language: Haskell2010
-  other-extensions: TemplateHaskell, KindSignatures 
+  other-extensions: TemplateHaskell, KindSignatures
   Build-depends:    base >= 3 && < 5, template-haskell >= 2.11
 
   ghc-options:     -Wall
