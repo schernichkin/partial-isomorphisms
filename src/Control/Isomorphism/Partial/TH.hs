@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, DataKinds #-}
 module Control.Isomorphism.Partial.TH
   ( constructorIso
   , defineIsomorphisms
@@ -34,24 +34,27 @@ conFields (GadtC _ _ _)       =   gadtError
 conFields (RecGadtC _ _ _)    =   gadtError
 
 -- Data dec information
-data DecInfo = DecInfo Type [TyVarBndr] [Con]
+data DecInfo flag = DecInfo Type [TyVarBndr flag] [Con]
 
 -- | Extract data or newtype declaration information
-decInfo :: Dec -> Q DecInfo
+decInfo :: Dec -> Q (DecInfo ())
 decInfo (DataD    _ name tyVars _ cs _) =  return $ DecInfo (ConT name) tyVars cs
 decInfo (NewtypeD _ name tyVars _ c _) =  return $ DecInfo (ConT name) tyVars [c]
 decInfo _ = fail "partial isomorphisms can only be derived for constructors of data type or newtype declarations."
 
 -- | Convert tyVarBndr to type
-tyVarBndrToType :: TyVarBndr -> Type
-tyVarBndrToType (PlainTV  n)   = VarT n
-tyVarBndrToType (KindedTV n k) = SigT (VarT n) k
+tyVarBndrToType :: TyVarBndr () -> Type
+tyVarBndrToType (PlainTV n _)   = VarT n
+tyVarBndrToType (KindedTV n _ k) = SigT (VarT n) k
 
 -- | Create Iso type for specified type and conctructor fields (Iso (a, b) (CustomType a b c))
-isoType :: Type -> [TyVarBndr] -> [Type] -> Q Type
+isoType :: Type -> [TyVarBndr ()] -> [Type] -> Q Type
 isoType typ tyVarBndrs fields = do
     isoCon <- [t| Iso |]
-    return $ ForallT tyVarBndrs [] $ isoCon `AppT` (isoArgs fields) `AppT` (applyAll typ $ map tyVarBndrToType tyVarBndrs)
+    return $ ForallT (map specified tyVarBndrs) [] $ isoCon `AppT` (isoArgs fields) `AppT` (applyAll typ $ map tyVarBndrToType tyVarBndrs)
+    where
+      specified (PlainTV name _) = PlainTV name SpecifiedSpec
+      specified (KindedTV name _ kind) = KindedTV name SpecifiedSpec kind
 
 isoArgs :: [Type] -> Type
 isoArgs []     = TupleT 0
@@ -96,7 +99,7 @@ defineIsomorphisms d = do
 --   The name of the partial isomorphisms is constructed by
 --   spelling the constructor name with an initial lower-case
 --   letter.
-defFromCon :: [MatchQ] -> Type -> [TyVarBndr] -> Con -> DecsQ
+defFromCon :: [MatchQ] -> Type -> [TyVarBndr ()] -> Con -> DecsQ
 defFromCon matches t tyVarBndrs con = do
     let funName = rename $ conName con
     sig <- SigD funName `fmap` isoType t tyVarBndrs (conFields con)
