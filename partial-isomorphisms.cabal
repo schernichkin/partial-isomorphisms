@@ -1,13 +1,13 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.0.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: aec789bd5fc64f671de10e2451b07b849cbd6ebf220f67fbcdf7186b93defe2c
+-- hash: 2de2f9b97477133c659e357f0f2d42bc33287bb9e291bb1f63bf2678c3942f70
 
 name:           partial-isomorphisms
-version:        0.2.3.0
+version:        0.2.4.0
 synopsis:       Partial isomorphisms.
 description:    Partial isomorphisms as described in the paper:
                 .
@@ -42,7 +42,8 @@ library
       Paths_partial_isomorphisms
   hs-source-dirs:
       src
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.15 && <5
-    , template-haskell >=2.17
+    , template-haskell >=2.21
   default-language: Haskell2010

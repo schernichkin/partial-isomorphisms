@@ -1,5 +1,5 @@
 name:                partial-isomorphisms
-version:             0.2.3.0
+version:             0.2.4.0
 github:              "schernichkin/partial-isomorphisms"
 license:             BSD3
 license-file:        LICENSE
@@ -32,7 +32,18 @@ homepage:            "http://www.informatik.uni-marburg.de/~rendel/unparse"
 
 dependencies:
 - base >= 4.15 && < 5
-- template-haskell >= 2.17
+- template-haskell >= 2.21
+
+ghc-options:
+- -Wall
+- -Wcompat
+- -Widentities
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wmissing-export-lists
+- -Wmissing-home-modules
+- -Wpartial-fields
+- -Wredundant-constraints
 
 library:
   source-dirs: src
